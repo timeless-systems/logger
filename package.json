@@ -15,5 +15,10 @@
   "publishConfig": {
     "registry": "https://npm.pkg.github.com/",
     "tag": "v1-latest"
+  },
+  "repository": {
+    "type": "git",
+    "url": "ssh://git@github.com:timeless-systems/logger.git",
+    "directory": "@timeless-systems/logger"
   }
 }
