@@ -1,0 +1,19 @@
+{
+  "name": "logger",
+  "version": "0.0.0",
+  "description": "Logger - Winston",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "Timeless-Systems GmbH",
+  "dependencies": {
+    "lodash": "^4.17.20",
+    "winston": "^3.3.3"
+  },
+  "publishConfig": {
+    "registry": "https://npm.pkg.github.com/",
+    "tag": "v1-latest"
+  }
+}
