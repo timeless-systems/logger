@@ -3,10 +3,16 @@ const _ = require("lodash");
 const fs = require('fs');
 const path = require('path');
 const { format } = require("winston");
-const { ConsoleTransportOptions } = require("winston/lib/winston/transports");
 
-console.log(process.cwd())
-console.log(__dirname)
+var defaultFormat = {
+    format: format.combine(
+        format.colorize(),
+        format.timestamp({
+            format: "YYYY-MM-DD HH:mm:ss"
+        }),
+        format.printf(info => `${info.timestamp} ${info.level}: ${info.message}`)
+    )
+}
 
 var defaultOptions = {
     console: {
@@ -14,6 +20,15 @@ var defaultOptions = {
         handleExceptions: true,
         json: false,
         level: "info"
+    },
+    file_error: {
+        colorize: false,
+        filename: `./logs/error.log`,
+        handleExceptions: true,
+        json: true,
+        level: "error",
+        maxFiles: 5,
+        maxsize: 5242880 // 5MB
     },
     file: {
         colorize: false,
@@ -26,16 +41,21 @@ var defaultOptions = {
     }
 };
 
-async function checkDir() {
+async function pre() {
+    console.log('Executing main');
 
-    // directory to check if exists
     const dir = './config';
 
-    // check if directory exists
+    if (!fs.existsSync(dir)) {
+        fs.mkdirSync(dir, {
+            recursive: true
+        });
+    }
+
     if (fs.existsSync(dir)) {
-        console.log('Directory exists!');
-    } else {
-        console.log('Directory not found.');
+        const jsonString = JSON.stringify(defaultOptions, null, 2)
+        fs.writeFileSync(`${dir}/logger.json`, jsonString)
+        var data = reload_config(`${dir}/logger.json`);
     }
 }
 
@@ -57,6 +77,7 @@ function reload_config(file) {
 
         transports.console.level = config.console.level;
         transports.file.level = config.file.level;
+        transports.file_error.level = config.file_error.level;
 
         logger.info('INFO Will be logged in both transports!');
         logger.debug('DEBUG Will be logged in both transports!');
@@ -71,26 +92,18 @@ function reload_config(file) {
     _.extend(self, require(file));
 }
 
-const dir = './config';
-
-if (!fs.existsSync(dir)) {
-    fs.mkdirSync(dir, {
-        recursive: true
-    });
-}
-
-if (fs.existsSync(dir)) {
-    const jsonString = JSON.stringify(defaultOptions, null, 2)
-    fs.writeFileSync(`${dir}/logger.json`, jsonString)
-    var data = reload_config(`${dir}/logger.json`);
-}
+pre().catch((e) => {
+    console.error(e)
+})
 
 const transports = {
     console: new winston.transports.Console(defaultOptions.console),
-    file: new winston.transports.File(defaultOptions.file)
+    file: new winston.transports.File(defaultOptions.file),
+    file_error: new winston.transports.File(defaultOptions.file_error)
 };
 
 var logger = winston.createLogger({
+    defaultMeta: { service: 'user-service' },
     format: format.combine(
         format.colorize(),
         format.timestamp({
@@ -100,7 +113,8 @@ var logger = winston.createLogger({
     ),
     transports: [
         transports.console,
-        transports.file
+        transports.file,
+        transports.file_error
     ]
 });
 
