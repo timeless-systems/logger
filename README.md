@@ -26,3 +26,17 @@ or
 npm install @timeless-systems/logger
 
 ```
+
+## Development
+
+in workspace of logger:
+
+```
+npm link
+```
+
+in the workspace where it shoudl be consumed:
+
+```
+npm link @timeless-systems/logger
+```
