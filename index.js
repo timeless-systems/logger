@@ -3,14 +3,20 @@ const _ = require("lodash");
 const fs = require('fs');
 const path = require('path');
 const { format } = require("winston");
+const rTracer = require('cls-rtracer');
+
+const rTracerFormat = printf((info) => {
+    const rid = rTracer.id()
+    return rid
+        ? `${info.timestamp} [request-id:${rid}]: ${info.level} ${info.message}`
+        : `${info.timestamp} ${info.level} : ${info.message}`
+})
 
 var defaultFormat = {
     format: format.combine(
         format.colorize(),
-        format.timestamp({
-            format: "YYYY-MM-DD HH:mm:ss"
-        }),
-        format.printf(info => `${info.timestamp} ${info.level}: ${info.message}`)
+        timestamp(),
+        rTracerFormat
     )
 }
 
