@@ -3,24 +3,14 @@ const _ = require("lodash");
 const fs = require('fs');
 const path = require('path');
 const { format } = require("winston");
-const { timestamp, printf } = format
-
 const rTracer = require('cls-rtracer');
 
-const rTracerFormat = printf((info) => {
+const rTracerFormat = format.printf((info) => {
     const rid = rTracer.id()
     return rid
-        ? `${info.timestamp} [request-id:${rid}]: ${info.level} ${info.message}`
-        : `${info.timestamp} ${info.level} : ${info.message}`
-})
-
-var defaultFormat = {
-    format: format.combine(
-        format.colorize(),
-        timestamp(),
-        rTracerFormat
-    )
-}
+      ? `${info.timestamp} [request-id:${rid}]: ${info.level} ${info.message}`
+      : `${info.timestamp}: ${info.message}`
+  })
 
 var defaultOptions = {
     console: {
@@ -114,6 +104,9 @@ var logger = winston.createLogger({
     defaultMeta: { service: 'user-service' },
     format: format.combine(
         format.colorize(),
+        format.timestamp({
+            format: "YYYY-MM-DD HH:mm:ss"
+        }),
         rTracerFormat
     ),
     transports: [
