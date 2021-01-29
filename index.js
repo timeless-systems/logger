@@ -3,6 +3,8 @@ const _ = require("lodash");
 const fs = require('fs');
 const path = require('path');
 const { format } = require("winston");
+const { timestamp, printf } = format
+
 const rTracer = require('cls-rtracer');
 
 const rTracerFormat = printf((info) => {
