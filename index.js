@@ -9,7 +9,7 @@ const rTracerFormat = format.printf((info) => {
     const rid = rTracer.id()
     return rid
       ? `${info.timestamp} [request-id:${rid}]: ${info.level} ${info.message}`
-      : `${info.timestamp}: ${info.message}`
+      : `${info.timestamp}: ${info.level} ${info.message}`
   })
 
 var defaultOptions = {
@@ -64,7 +64,7 @@ function reload_config(file) {
 
     self.path = path.resolve(file);
 
-    fs.watchFile(file, function (curr, prev) {
+    fs.watch(file, function (curr, prev) {
         try {
             const data = fs.readFileSync('./config/logger.json', 'utf8')
             // create objects
@@ -117,3 +117,21 @@ var logger = winston.createLogger({
 });
 
 module.exports = logger;
+
+
+/*
+const logger = winston.createLogger({
+  transports: [
+    new winston.transports.File({
+      filename: 'error.log', level: 'error',
+      format: winston.format.simple(),
+    }),
+    new winston.transports.File({
+      filename: 'combined.log', level: 'debug',
+      format: winston.format.printf(info => `${new Date().toISOString(), ${info.message}`),
+    }),
+  ],
+});
+
+logger.error('prefixed by the timestamp only in `combined.log`');
+*/
