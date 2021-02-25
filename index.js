@@ -5,6 +5,9 @@ const path = require('path');
 const { format } = require("winston");
 const rTracer = require('cls-rtracer');
 
+const dir = './config';
+const configFileName = 'logger.json';
+
 const rTracerFormat = format.printf((info) => {
     const rid = rTracer.id()
     return rid
@@ -49,7 +52,6 @@ var defaultOptions = {
 async function pre() {
     console.log('Executing main');
 
-    const dir = './config';
 
     if (!fs.existsSync(dir)) {
         fs.mkdirSync(dir, {
@@ -58,14 +60,14 @@ async function pre() {
     }
 
     if (fs.existsSync(dir)) {
-        if (!fs.existsSync(`${dir}/logger.json`)) {
-            console.log('config file doe not exist');
+        if (!fs.existsSync(`${dir}/${configFileName}`)) {
+            console.log('config file does not exist');
 
             const jsonString = JSON.stringify(defaultOptions, null, 2)
-            fs.writeFileSync(`${dir}/logger.json`, jsonString)
+            fs.writeFileSync(`${dir}/${configFileName}`, jsonString)
         }
 
-        var data = reload_config(`${dir}/logger.json`);
+        var data = reload_config(`${dir}/${configFileName}`);
     }
 
 }
@@ -79,11 +81,10 @@ function reload_config(file) {
 
     fs.watch(file, function (curr, prev) {
         try {
-            const data = fs.readFileSync('./config/logger.json', 'utf8')
+            const data = fs.readFileSync(`${dir}/${configFileName}`, 'utf8')
             // create objects
             var config = JSON.parse(data)
         } catch (err) {
-            console.log('******')
             console.error(err)
         }
 
@@ -109,11 +110,16 @@ pre().catch((e) => {
     console.error(e)
 })
 
+const logConsole = process.env.logConsole || 'true';
+const logFile = process.env.logFile || 'true';
+const logHttp = process.env.logHttp || 'true';
+const logFile_error = process.env.logFile_error || 'true';
+
 const transports = {
-    console: new winston.transports.Console(defaultOptions.console),
-    file: new winston.transports.File(defaultOptions.file),
-    http: new winston.transports.Http(defaultOptions.http),
-    file_error: new winston.transports.File(defaultOptions.file_error)
+    ...((logConsole === 'true') ? {console: new winston.transports.Console(defaultOptions.console)} : {}),
+    ...((logFile === 'true') ? {file: new winston.transports.File(defaultOptions.file)} : {}),
+    ...((logHttp === 'true') ? {http: new winston.transports.Http(defaultOptions.http)} : {}),
+    ...((logFile_error === 'true') ? {file_error: new winston.transports.File(defaultOptions.file_error)} : {})
 };
 
 var logger = winston.createLogger({
@@ -126,10 +132,10 @@ var logger = winston.createLogger({
         rTracerFormat
     ),
     transports: [
-        transports.console,
-        transports.file,
-        transports.http,
-        transports.file_error
+        ...((logConsole === 'true') ? [transports.console] : []),
+        ...((logFile  === 'true')? [transports.file] : []),
+        ...((logHttp  === 'true')? [transports.http] : []),
+        ...((logFile_error === 'true') ? [transports.file_error] : [])
     ]
 });
 
