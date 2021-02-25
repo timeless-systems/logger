@@ -58,7 +58,7 @@ async function pre() {
     }
 
     if (fs.existsSync(dir)) {
-        if (!fs.existsSync(dir + '/logger.json')) {
+        if (!fs.existsSync(`${dir}/logger.json`)) {
             console.log('config file doe not exist');
 
             const jsonString = JSON.stringify(defaultOptions, null, 2)
