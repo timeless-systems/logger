@@ -8,11 +8,18 @@ const rTracer = require('cls-rtracer');
 const rTracerFormat = format.printf((info) => {
     const rid = rTracer.id()
     return rid
-      ? `${info.timestamp} [request-id:${rid}]: ${info.level} ${info.message}`
-      : `${info.timestamp}: ${info.level} ${info.message}`
-  })
+        ? `${info.timestamp} [request-id:${rid}]: ${info.level} ${info.message}`
+        : `${info.timestamp}: ${info.level} ${info.message}`
+})
 
 var defaultOptions = {
+    http: {
+        colorize: false,
+        host: '127.0.0.1',
+        port: '3001',
+        path: '/winston_log/',
+        level: "info"
+    },
     console: {
         colorize: true,
         handleExceptions: true,
@@ -51,10 +58,16 @@ async function pre() {
     }
 
     if (fs.existsSync(dir)) {
-        const jsonString = JSON.stringify(defaultOptions, null, 2)
-        fs.writeFileSync(`${dir}/logger.json`, jsonString)
+        if (!fs.existsSync(dir + '/logger.json')) {
+            console.log('config file doe not exist');
+
+            const jsonString = JSON.stringify(defaultOptions, null, 2)
+            fs.writeFileSync(`${dir}/logger.json`, jsonString)
+        }
+
         var data = reload_config(`${dir}/logger.json`);
     }
+
 }
 
 function reload_config(file) {
@@ -70,12 +83,14 @@ function reload_config(file) {
             // create objects
             var config = JSON.parse(data)
         } catch (err) {
+            console.log('******')
             console.error(err)
         }
 
         transports.console.level = config.console.level;
         transports.file.level = config.file.level;
         transports.file_error.level = config.file_error.level;
+        transports.http.level = config.http.level;
 
         logger.info('INFO Will be logged in both transports!');
         logger.debug('DEBUG Will be logged in both transports!');
@@ -97,6 +112,7 @@ pre().catch((e) => {
 const transports = {
     console: new winston.transports.Console(defaultOptions.console),
     file: new winston.transports.File(defaultOptions.file),
+    http: new winston.transports.Http(defaultOptions.http),
     file_error: new winston.transports.File(defaultOptions.file_error)
 };
 
@@ -112,6 +128,7 @@ var logger = winston.createLogger({
     transports: [
         transports.console,
         transports.file,
+        transports.http,
         transports.file_error
     ]
 });

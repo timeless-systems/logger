@@ -46,7 +46,7 @@ in workspace of logger:
 npm link
 ```
 
-in the workspace where it shoudl be consumed:
+in the workspace where it should be consumed:
 
 ```
 npm link @timeless-systems/logger
