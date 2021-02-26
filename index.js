@@ -8,6 +8,9 @@ const rTracer = require('cls-rtracer');
 const dir = './config';
 const configFileName = 'logger.json';
 
+const logHost = process.env.LOG_HOST || '127.0.0.1';
+const logPort = process.env.LOG_PORT || 3001;
+
 const rTracerFormat = format.printf((info) => {
     const rid = rTracer.id()
     return rid
@@ -18,8 +21,8 @@ const rTracerFormat = format.printf((info) => {
 var defaultOptions = {
     http: {
         colorize: false,
-        host: '127.0.0.1',
-        port: '3001',
+        host: logHost,
+        port: logPort,
         path: '/winston_log/',
         level: "info"
     },
