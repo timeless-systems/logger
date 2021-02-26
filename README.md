@@ -1,6 +1,15 @@
 # logger
 Wrapper for Winston logger 
 
+## ENV Variables to activate different transports
+
+```
+const logConsole = process.env.LOG_CONSOLE || 'true';
+const logFile = process.env.LOG_FILE || 'true';
+const logHttp = process.env.LOG_HTTP || 'true';
+const logFile_error = process.env.LOG_FILE_ERROR || 'true';
+```
+
 ## levels
 
 ```

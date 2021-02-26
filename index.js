@@ -110,10 +110,10 @@ pre().catch((e) => {
     console.error(e)
 })
 
-const logConsole = process.env.logConsole || 'true';
-const logFile = process.env.logFile || 'true';
-const logHttp = process.env.logHttp || 'true';
-const logFile_error = process.env.logFile_error || 'true';
+const logConsole = process.env.LOG_CONSOLE || 'true';
+const logFile = process.env.LOG_FILE || 'true';
+const logHttp = process.env.LOG_HTTP || 'false';
+const logFile_error = process.env.LOG_FILE_ERROR || 'true';
 
 const transports = {
     ...((logConsole === 'true') ? {console: new winston.transports.Console(defaultOptions.console)} : {}),
