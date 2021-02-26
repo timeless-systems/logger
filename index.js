@@ -5,14 +5,24 @@ const path = require('path');
 const { format } = require("winston");
 const rTracer = require('cls-rtracer');
 
+const dir = './config';
+const configFileName = 'logger.json';
+
 const rTracerFormat = format.printf((info) => {
     const rid = rTracer.id()
     return rid
-      ? `${info.timestamp} [request-id:${rid}]: ${info.level} ${info.message}`
-      : `${info.timestamp}: ${info.level} ${info.message}`
-  })
+        ? `${info.timestamp} [request-id:${rid}]: ${info.level} ${info.message}`
+        : `${info.timestamp}: ${info.level} ${info.message}`
+})
 
 var defaultOptions = {
+    http: {
+        colorize: false,
+        host: '127.0.0.1',
+        port: '3001',
+        path: '/winston_log/',
+        level: "info"
+    },
     console: {
         colorize: true,
         handleExceptions: true,
@@ -42,7 +52,6 @@ var defaultOptions = {
 async function pre() {
     console.log('Executing main');
 
-    const dir = './config';
 
     if (!fs.existsSync(dir)) {
         fs.mkdirSync(dir, {
@@ -51,10 +60,16 @@ async function pre() {
     }
 
     if (fs.existsSync(dir)) {
-        const jsonString = JSON.stringify(defaultOptions, null, 2)
-        fs.writeFileSync(`${dir}/logger.json`, jsonString)
-        var data = reload_config(`${dir}/logger.json`);
+        if (!fs.existsSync(`${dir}/${configFileName}`)) {
+            console.log('config file does not exist');
+
+            const jsonString = JSON.stringify(defaultOptions, null, 2)
+            fs.writeFileSync(`${dir}/${configFileName}`, jsonString)
+        }
+
+        var data = reload_config(`${dir}/${configFileName}`);
     }
+
 }
 
 function reload_config(file) {
@@ -66,7 +81,7 @@ function reload_config(file) {
 
     fs.watch(file, function (curr, prev) {
         try {
-            const data = fs.readFileSync('./config/logger.json', 'utf8')
+            const data = fs.readFileSync(`${dir}/${configFileName}`, 'utf8')
             // create objects
             var config = JSON.parse(data)
         } catch (err) {
@@ -76,6 +91,7 @@ function reload_config(file) {
         transports.console.level = config.console.level;
         transports.file.level = config.file.level;
         transports.file_error.level = config.file_error.level;
+        transports.http.level = config.http.level;
 
         logger.info('INFO Will be logged in both transports!');
         logger.debug('DEBUG Will be logged in both transports!');
@@ -94,10 +110,16 @@ pre().catch((e) => {
     console.error(e)
 })
 
+const logConsole = process.env.LOG_CONSOLE || 'true';
+const logFile = process.env.LOG_FILE || 'true';
+const logHttp = process.env.LOG_HTTP || 'false';
+const logFile_error = process.env.LOG_FILE_ERROR || 'true';
+
 const transports = {
-    console: new winston.transports.Console(defaultOptions.console),
-    file: new winston.transports.File(defaultOptions.file),
-    file_error: new winston.transports.File(defaultOptions.file_error)
+    ...((logConsole === 'true') ? {console: new winston.transports.Console(defaultOptions.console)} : {}),
+    ...((logFile === 'true') ? {file: new winston.transports.File(defaultOptions.file)} : {}),
+    ...((logHttp === 'true') ? {http: new winston.transports.Http(defaultOptions.http)} : {}),
+    ...((logFile_error === 'true') ? {file_error: new winston.transports.File(defaultOptions.file_error)} : {})
 };
 
 var logger = winston.createLogger({
@@ -110,9 +132,10 @@ var logger = winston.createLogger({
         rTracerFormat
     ),
     transports: [
-        transports.console,
-        transports.file,
-        transports.file_error
+        ...((logConsole === 'true') ? [transports.console] : []),
+        ...((logFile  === 'true')? [transports.file] : []),
+        ...((logHttp  === 'true')? [transports.http] : []),
+        ...((logFile_error === 'true') ? [transports.file_error] : [])
     ]
 });
 
