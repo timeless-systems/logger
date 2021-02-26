@@ -1,163 +1,152 @@
-var winston = require("winston");
-const _ = require("lodash");
-const fs = require('fs');
-const path = require('path');
-const { format } = require("winston");
+'use strict'
+
+const { createLogger, format } = require('winston');
+const { combine, timestamp, label, printf, colorize } = format;
+const transportBuilder = require('./src/transportBuilder')
 const rTracer = require('cls-rtracer');
 
-const dir = './config';
-const configFileName = 'logger.json';
+const myFormat = printf((info) => {
+  const now = new Date(info.timestamp)
+  let formatMsg
+  const rid = rTracer.id()
 
-const logHost = process.env.LOG_HOST || '127.0.0.1';
-const logPort = process.env.LOG_PORT || 3001;
+  if (info.message instanceof Error) {
+    formatMsg = errorMsg(info.message)
+  } else {
+    formatMsg = commonMsg(info.message)
+  }
+  return rid 
+    ? `${now.toLocaleDateString()} ${now.toLocaleTimeString()} [request-id:${rid}]: ${info.level}: [${info.label}] ${formatMsg}`
+    : `${now.toLocaleDateString()} ${now.toLocaleTimeString()} ${info.level}: [${info.label}] ${formatMsg}`
+});
 
-const rTracerFormat = format.printf((info) => {
-    const rid = rTracer.id()
-    return rid
-        ? `${info.timestamp} [request-id:${rid}]: ${info.level} ${info.message}`
-        : `${info.timestamp}: ${info.level} ${info.message}`
-})
-
-var defaultOptions = {
-    http: {
-        colorize: false,
-        host: logHost,
-        port: logPort,
-        path: '/winston_log/',
-        level: "info"
-    },
-    console: {
-        colorize: true,
-        handleExceptions: true,
-        json: false,
-        level: "info"
-    },
-    file_error: {
-        colorize: false,
-        filename: `./logs/error.log`,
-        handleExceptions: true,
-        json: true,
-        level: "error",
-        maxFiles: 5,
-        maxsize: 5242880 // 5MB
-    },
-    file: {
-        colorize: false,
-        filename: `./logs/app.log`,
-        handleExceptions: true,
-        json: true,
-        level: "info",
-        maxFiles: 5,
-        maxsize: 5242880 // 5MB
-    }
-};
-
-async function pre() {
-    console.log('Executing main');
-
-
-    if (!fs.existsSync(dir)) {
-        fs.mkdirSync(dir, {
-            recursive: true
-        });
-    }
-
-    if (fs.existsSync(dir)) {
-        if (!fs.existsSync(`${dir}/${configFileName}`)) {
-            console.log('config file does not exist');
-
-            const jsonString = JSON.stringify(defaultOptions, null, 2)
-            fs.writeFileSync(`${dir}/${configFileName}`, jsonString)
-        }
-
-        var data = reload_config(`${dir}/${configFileName}`);
-    }
-
+function commonMsg (msg) {
+  if (typeof msg === 'string') {
+    return msg
+  } else {
+    return JSON.stringify(msg, (name, val) => {
+      if (val && val.constructor === RegExp) {
+        return val.toString();
+      } else if ( val && val.constructor === Function) {
+        return `[Function] ${name}`;
+      } else {
+        return val;
+      }
+    }, 2)
+  }
 }
 
-function reload_config(file) {
-    if (!(this instanceof reload_config))
-        return new reload_config(file);
-    var self = this;
+function errorMsg (err) {
+  return `\nError message: ${err.message}\nError code: ${err.code}\nError stack: ${err.stack}`
+}
 
-    self.path = path.resolve(file);
+function buildFileInfo (message) {
+  const s = (new Error()).stack
+  const fileAndLine = traceCaller(1, s)
+  if (!message) {
+    return fileAndLine + ': ' + message
+  } else {
+    if (message instanceof Error) {
+      message = errorMsg(message)
+    } else {
+      message = commonMsg(message)
+    }
+  }
+  return fileAndLine + ': ' + message
+}
 
-    fs.watch(file, function (curr, prev) {
-        try {
-            const data = fs.readFileSync(`${dir}/${configFileName}`, 'utf8')
-            // create objects
-            var config = JSON.parse(data)
-        } catch (err) {
-            console.error(err)
-        }
+function traceCaller (n, s) {
+  if (isNaN(n) || n < 0) {
+    n = 1
+  }
+  n += 1
+  // let s = (new Error()).stack
+  let a = s.indexOf('\n', 5)
+  while (n--) {
+    a = s.indexOf('\n', a + 1)
+    if (a < 0) {
+      a = s.lastIndexOf('\n', s.length)
+      break
+    }
+  }
+  let b = s.indexOf('\n', a + 1)
+  if (b < 0) {
+    b = s.length
+  }
+  a = Math.max(s.lastIndexOf(' ', b), s.lastIndexOf('/', b))
+  b = s.lastIndexOf(':', b)
+  s = s.substring(a + 1, b)
+  return s
+}
 
-        transports.console.level = config.console.level;
-        transports.file.level = config.file.level;
-        transports.file_error.level = config.file_error.level;
-        transports.http.level = config.http.level;
 
-        logger.info('INFO Will be logged in both transports!');
-        logger.debug('DEBUG Will be logged in both transports!');
-        logger.warn('WARN Will be logged in both transports!');
-        logger.silly('SILLY Will be logged in both transports!');
-        logger.verbose('VERBOSE Will be logged in both transports!');
+const defaultLabel = 'common'
 
-        delete require.cache[self.path];
-        _.extend(self, require(file));
+class Logger {
+  constructor (config = {}) {
+    this.isFileInfoPrint = !!config.isFileInfoPrint
+    this.buildFileInfo = buildFileInfo.bind(this)
+    this.logger = createLogger({
+      level: 'info',
+      format: combine(
+        colorize(),
+        timestamp(),
+        myFormat
+      ),
+      transports: transportBuilder.build(config.transports)
     });
+  }
 
-    _.extend(self, require(file));
+  error (message, label = defaultLabel) {
+    message = this.buildFileInfo(message)
+    this.log('error', message, label)
+  }
+  
+  warn (message, label = defaultLabel) {
+    if (this.isFileInfoPrint) {
+      message = this.buildFileInfo(message)
+    }
+    this.log('warn', message, label)
+  }
+  
+  info (message, label = defaultLabel) {
+    if (this.isFileInfoPrint) {
+      message = this.buildFileInfo(message)
+    }
+    this.log('info', message, label)
+  }
+  
+  verbose (message, label = defaultLabel) {
+    if (this.isFileInfoPrint) {
+      message = this.buildFileInfo(message)
+    }
+    this.log('verbose', message, label)
+  }
+  
+  debug (message, label = defaultLabel) {
+    if (this.isFileInfoPrint) {
+      message = this.buildFileInfo(message)
+    }
+    this.log('debug', message, label)
+  }
+  
+  silly (message, label = defaultLabel) {
+    if (this.isFileInfoPrint) {
+      message = this.buildFileInfo(message)
+    }
+    this.log('silly', message, label)
+  }
+
+  log (level, message, label) {
+    this.logger.log({
+      level,
+      message,
+      label
+    })
+  }
+
 }
 
-pre().catch((e) => {
-    console.error(e)
-})
-
-const logConsole = process.env.LOG_CONSOLE || 'true';
-const logFile = process.env.LOG_FILE || 'true';
-const logHttp = process.env.LOG_HTTP || 'false';
-const logFile_error = process.env.LOG_FILE_ERROR || 'true';
-
-const transports = {
-    ...((logConsole === 'true') ? {console: new winston.transports.Console(defaultOptions.console)} : {}),
-    ...((logFile === 'true') ? {file: new winston.transports.File(defaultOptions.file)} : {}),
-    ...((logHttp === 'true') ? {http: new winston.transports.Http(defaultOptions.http)} : {}),
-    ...((logFile_error === 'true') ? {file_error: new winston.transports.File(defaultOptions.file_error)} : {})
-};
-
-var logger = winston.createLogger({
-    defaultMeta: { service: 'user-service' },
-    format: format.combine(
-        format.colorize(),
-        format.timestamp({
-            format: "YYYY-MM-DD HH:mm:ss"
-        }),
-        rTracerFormat
-    ),
-    transports: [
-        ...((logConsole === 'true') ? [transports.console] : []),
-        ...((logFile  === 'true')? [transports.file] : []),
-        ...((logHttp  === 'true')? [transports.http] : []),
-        ...((logFile_error === 'true') ? [transports.file_error] : [])
-    ]
-});
-
-module.exports = logger;
-
-
-/*
-const logger = winston.createLogger({
-  transports: [
-    new winston.transports.File({
-      filename: 'error.log', level: 'error',
-      format: winston.format.simple(),
-    }),
-    new winston.transports.File({
-      filename: 'combined.log', level: 'debug',
-      format: winston.format.printf(info => `${new Date().toISOString(), ${info.message}`),
-    }),
-  ],
-});
-
-logger.error('prefixed by the timestamp only in `combined.log`');
-*/
+module.exports = {
+  Logger
+}
