@@ -15,19 +15,19 @@ const myFormat = printf((info) => {
   } else {
     formatMsg = commonMsg(info.message)
   }
-  return rid 
+  return rid
     ? `${now.toLocaleDateString()} ${now.toLocaleTimeString()} [request-id:${rid}]: ${info.level}: [${info.label}] ${formatMsg}`
     : `${now.toLocaleDateString()} ${now.toLocaleTimeString()} ${info.level}: [${info.label}] ${formatMsg}`
 });
 
-function commonMsg (msg) {
+function commonMsg(msg) {
   if (typeof msg === 'string') {
     return msg
   } else {
     return JSON.stringify(msg, (name, val) => {
       if (val && val.constructor === RegExp) {
         return val.toString();
-      } else if ( val && val.constructor === Function) {
+      } else if (val && val.constructor === Function) {
         return `[Function] ${name}`;
       } else {
         return val;
@@ -36,11 +36,11 @@ function commonMsg (msg) {
   }
 }
 
-function errorMsg (err) {
+function errorMsg(err) {
   return `\nError message: ${err.message}\nError code: ${err.code}\nError stack: ${err.stack}`
 }
 
-function buildFileInfo (message) {
+function buildFileInfo(message) {
   const s = (new Error()).stack
   const fileAndLine = traceCaller(1, s)
   if (!message) {
@@ -55,7 +55,7 @@ function buildFileInfo (message) {
   return fileAndLine + ': ' + message
 }
 
-function traceCaller (n, s) {
+function traceCaller(n, s) {
   if (isNaN(n) || n < 0) {
     n = 1
   }
@@ -82,8 +82,27 @@ function traceCaller (n, s) {
 
 const defaultLabel = 'common'
 
+const defaultTransport = {
+  "transport": [
+    {
+      "type": "console",
+      "level": "info"
+    },
+    {
+      "type": "file",
+      "level": "info",
+      "filename": "./logs/output.log"
+    },
+    {
+      "type": "http",
+      "level": "info"
+    }
+  ]
+}
 class Logger {
-  constructor (config = {}) {
+  // options = {}
+  constructor(options) {
+    config = options || defaultTransport
     this.isFileInfoPrint = !!config.isFileInfoPrint
     this.buildFileInfo = buildFileInfo.bind(this)
     this.logger = createLogger({
@@ -97,47 +116,47 @@ class Logger {
     });
   }
 
-  error (message, label = defaultLabel) {
+  error(message, label = defaultLabel) {
     message = this.buildFileInfo(message)
     this.log('error', message, label)
   }
-  
-  warn (message, label = defaultLabel) {
+
+  warn(message, label = defaultLabel) {
     if (this.isFileInfoPrint) {
       message = this.buildFileInfo(message)
     }
     this.log('warn', message, label)
   }
-  
-  info (message, label = defaultLabel) {
+
+  info(message, label = defaultLabel) {
     if (this.isFileInfoPrint) {
       message = this.buildFileInfo(message)
     }
     this.log('info', message, label)
   }
-  
-  verbose (message, label = defaultLabel) {
+
+  verbose(message, label = defaultLabel) {
     if (this.isFileInfoPrint) {
       message = this.buildFileInfo(message)
     }
     this.log('verbose', message, label)
   }
-  
-  debug (message, label = defaultLabel) {
+
+  debug(message, label = defaultLabel) {
     if (this.isFileInfoPrint) {
       message = this.buildFileInfo(message)
     }
     this.log('debug', message, label)
   }
-  
-  silly (message, label = defaultLabel) {
+
+  silly(message, label = defaultLabel) {
     if (this.isFileInfoPrint) {
       message = this.buildFileInfo(message)
     }
     this.log('silly', message, label)
   }
 
-  log (level, message, label) {
+  log(level, message, label) {
     this.logger.log({
       level,
       message,
