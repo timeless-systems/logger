@@ -102,7 +102,7 @@ const defaultTransport = {
 class Logger {
   // options = {}
   constructor(options) {
-    config = options || defaultTransport
+    let config = options || defaultTransport
     this.isFileInfoPrint = !!config.isFileInfoPrint
     this.buildFileInfo = buildFileInfo.bind(this)
     this.logger = createLogger({
