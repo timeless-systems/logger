@@ -1,6 +1,6 @@
 {
   "name": "@timeless-systems/logger",
-  "version": "0.1.2",
+  "version": "0.1.3",
   "description": "Logger - Winston",
   "main": "index.js",
   "scripts": {
